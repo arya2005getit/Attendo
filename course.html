@@ -559,10 +559,19 @@
           throw new Error(result.error || "Email sending failed");
         }
 
+        if (!result.sent) {
+          throw new Error("No emails were sent. Check student and parent email addresses for the selected option.");
+        }
+
         closeModal("email-modal");
         showToast(`Emails sent: ${result.sent}. Skipped: ${result.skipped}.`);
       } catch (error) {
-        showToast(error.message || "Failed to send email");
+        const message = (error && error.message) ? error.message : "Failed to send email";
+        if (message === "Failed to fetch") {
+          showToast("Email service is not running. Start it with: python web2/receiver.py");
+          return;
+        }
+        showToast(message);
       }
     }
 

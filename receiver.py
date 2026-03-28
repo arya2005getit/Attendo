@@ -31,9 +31,12 @@ def send_attendance_emails_route():
         return {"error": "no attendance stats provided"}, 400
 
     try:
+        print(f"Received email request, students={len(stats)}, mode={payload.get('mode')}")
         result = send_attendance_emails(payload)
+        print(f"Email result: {result}")
         return result
     except Exception as exc:
+        print("Email error:", exc)
         return {"error": str(exc)}, 500
 
 
