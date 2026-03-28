@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page Not Found — AttendTrack</title>
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .animate-fade-in { animation: fadeIn .25s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+
+  <div class="text-center animate-fade-in">
+    <div class="h-20 w-20 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mx-auto mb-6 text-3xl">🚫</div>
+
+    <h1 class="text-3xl font-bold mb-2">404 — Page Not Found</h1>
+    <p class="text-slate-600 mb-6 max-w-md mx-auto">
+      Uh oh! It looks like the page you're searching for doesn't exist or has been moved.
+    </p>
+
+    <button id="back-home"
+      class="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">
+      Go Back to Dashboard
+    </button>
+  </div>
+
+  <!-- Firebase (only for safe redirect) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <script>
+    // Safe Firebase initialization
+    try {
+      if (!firebase.apps.length) {
+        const saved = sessionStorage.getItem("firebaseConfig");
+        if (saved) firebase.initializeApp(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Firebase init failed:", e);
+    }
+
+    const auth = firebase.auth();
+
+    // Button action
+    document.getElementById("back-home").onclick = () => {
+      // If not logged in → go to auth page
+      auth.onAuthStateChanged(user => {
+        if (!user) return location.href = "auth.html";
+        location.href = "index.html"; 
+      });
+    };
+  </script>
+
+</body>
+</html>

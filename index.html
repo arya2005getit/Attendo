@@ -1,0 +1,511 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AttendTrack - Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .container { max-width: 1180px; }
+    .card-shadow { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+    .modal { display: none; }
+    .modal.active { display: flex; }
+    #toast { transition: opacity .18s, transform .18s; }
+    #toast.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; }
+    #toast.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  </style>
+</head>
+
+<body class="bg-slate-100 min-h-screen text-slate-900">
+  <header class="bg-white/95 border-b sticky top-0 z-10 backdrop-blur-sm">
+    <div class="container mx-auto px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-12 w-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg">AT</div>
+        <div>
+          <h1 class="text-xl font-bold">AttendTrack</h1>
+          <p id="user-email" class="text-sm text-slate-500">Loading user...</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button id="open-add-student" class="px-4 py-2 rounded-lg border bg-white">Add Student</button>
+        <button id="open-add-course" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Create Course</button>
+        <button id="logout-btn" class="px-4 py-2 rounded-lg border bg-white">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-8 space-y-8">
+    <section class="grid gap-4 md:grid-cols-3">
+      <div class="bg-white rounded-2xl p-5 card-shadow">
+        <p class="text-sm text-slate-500">Courses</p>
+        <p id="courses-count" class="text-3xl font-bold mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 card-shadow">
+        <p class="text-sm text-slate-500">Student Roster</p>
+        <p id="students-count" class="text-3xl font-bold mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 card-shadow">
+        <p class="text-sm text-slate-500">Quick Workflow</p>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Create a roster once, add students to courses, mark attendance by date, and review attendance percentages any time.</p>
+      </div>
+    </section>
+
+    <section class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold">Courses</h2>
+            <p class="text-sm text-slate-500">Open a course to mark daily attendance and review performance.</p>
+          </div>
+        </div>
+
+        <div id="courses-empty" class="hidden bg-white rounded-2xl p-10 text-center card-shadow">
+          <h3 class="text-xl font-semibold">No courses yet</h3>
+          <p class="text-slate-500 mt-2 mb-5">Create your first course to start tracking attendance.</p>
+          <button id="open-add-course-empty" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Create Course</button>
+        </div>
+
+        <div id="courses-grid" class="grid gap-4 sm:grid-cols-2"></div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 card-shadow">
+        <div class="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-2xl font-bold">Student Roster</h2>
+            <p class="text-sm text-slate-500">These students can be added to any course.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="student-sort" class="text-sm text-slate-500">Sort</label>
+            <select id="student-sort" class="rounded-lg border px-3 py-2 text-sm bg-white">
+              <option value="name">Name</option>
+              <option value="roll">Roll No.</option>
+            </select>
+            <button id="open-add-student-inline" class="px-3 py-2 rounded-lg border">Add Student</button>
+          </div>
+        </div>
+
+        <div id="students-empty" class="hidden rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+          No students in your roster yet.
+        </div>
+
+        <div class="overflow-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="text-left text-slate-500 border-b">
+                <th class="py-2 pr-4">Roll No.</th>
+                <th class="py-2 pr-4">Full Name</th>
+                <th class="py-2 pr-4">Student Email</th>
+                <th class="py-2 pr-4">Parent Email</th>
+                <th class="py-2 pr-4">Action</th>
+              </tr>
+            </thead>
+            <tbody id="students-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="course-modal" class="modal fixed inset-0 bg-slate-950/40 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg card-shadow">
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 class="text-xl font-semibold">Create Course</h3>
+          <p class="text-sm text-slate-500">Add a course, then attach students from your roster.</p>
+        </div>
+        <button id="close-course-modal" class="text-slate-500">Close</button>
+      </div>
+
+      <form id="course-form" class="space-y-4">
+        <div>
+          <label for="course-code" class="block text-sm mb-1">Course Code</label>
+          <input id="course-code" class="w-full rounded-lg border px-3 py-2" placeholder="CS101" required />
+        </div>
+        <div>
+          <label for="course-name" class="block text-sm mb-1">Course Name</label>
+          <input id="course-name" class="w-full rounded-lg border px-3 py-2" placeholder="Introduction to Programming" required />
+        </div>
+        <div>
+          <label for="course-desc" class="block text-sm mb-1">Description</label>
+          <textarea id="course-desc" class="w-full rounded-lg border px-3 py-2" rows="3" placeholder="Optional description"></textarea>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" id="cancel-course-modal" class="px-4 py-2 rounded-lg border">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Create Course</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="student-modal" class="modal fixed inset-0 bg-slate-950/40 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg card-shadow">
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 class="text-xl font-semibold">Add Student</h3>
+          <p class="text-sm text-slate-500">Students added here can be selected inside any course.</p>
+        </div>
+        <button id="close-student-modal" class="text-slate-500">Close</button>
+      </div>
+
+      <form id="student-form" class="space-y-4">
+        <div>
+          <label for="student-roll" class="block text-sm mb-1">Roll Number</label>
+          <input id="student-roll" class="w-full rounded-lg border px-3 py-2" placeholder="2024001" required />
+        </div>
+        <div>
+          <label for="student-name" class="block text-sm mb-1">Full Name</label>
+          <input id="student-name" class="w-full rounded-lg border px-3 py-2" placeholder="Student full name" required />
+        </div>
+        <div>
+          <label for="student-email" class="block text-sm mb-1">Student Email</label>
+          <input id="student-email" type="email" class="w-full rounded-lg border px-3 py-2" placeholder="student@example.com" required />
+        </div>
+        <div>
+          <label for="parent-email" class="block text-sm mb-1">Parent Email</label>
+          <input id="parent-email" type="email" class="w-full rounded-lg border px-3 py-2" placeholder="parent@example.com" />
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" id="cancel-student-modal" class="px-4 py-2 rounded-lg border">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 hidden bg-slate-900 text-white px-4 py-2 rounded-md shadow-lg">toast</div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqa3NndyYxagDaZPVI4f-8p7SYnBrvKTg",
+      authDomain: "attendo-9f2c0.firebaseapp.com",
+      projectId: "attendo-9f2c0",
+      storageBucket: "attendo-9f2c0.firebasestorage.app",
+      messagingSenderId: "690694898936",
+      appId: "1:690694898936:web:3e0bfcfb15cb88689ae70d"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    sessionStorage.setItem("firebaseConfig", JSON.stringify(firebaseConfig));
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const toastEl = document.getElementById("toast");
+    const studentSortEl = document.getElementById("student-sort");
+    let toastTimer;
+    let studentDocs = [];
+    let courseDocs = [];
+
+    function showToast(message, duration = 3000) {
+      clearTimeout(toastTimer);
+      toastEl.textContent = message;
+      toastEl.classList.remove("hidden");
+      toastEl.classList.add("visible");
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove("visible");
+        toastEl.classList.add("hidden");
+      }, duration);
+    }
+
+    function sortByName(items, key) {
+      return items.slice().sort((a, b) => String(a[key] || "").localeCompare(String(b[key] || "")));
+    }
+
+    function getSortedStudents() {
+      const sortBy = studentSortEl.value;
+      if (sortBy === "roll") {
+        return studentDocs.slice().sort((a, b) => String(a.rollNumber || "").localeCompare(String(b.rollNumber || "")));
+      }
+
+      return studentDocs.slice().sort((a, b) => String(a.fullName || "").localeCompare(String(b.fullName || "")));
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add("active");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("active");
+    }
+
+    function renderStudents() {
+      const tbody = document.getElementById("students-tbody");
+      const empty = document.getElementById("students-empty");
+      const count = document.getElementById("students-count");
+
+      tbody.innerHTML = "";
+      count.textContent = String(studentDocs.length);
+
+      if (studentDocs.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+
+      getSortedStudents().forEach((student) => {
+        const row = document.createElement("tr");
+        row.className = "border-b last:border-0";
+        row.innerHTML = [
+          `<td class="py-3 pr-4 font-medium">${student.rollNumber || "-"}</td>`,
+          `<td class="py-3 pr-4">${student.fullName || "-"}</td>`,
+          `<td class="py-3 pr-4">${student.email || "-"}</td>`,
+          `<td class="py-3 pr-4">${student.parentEmail || "-"}</td>`,
+          `<td class="py-3 pr-4"><button data-student-id="${student.id}" class="delete-student px-3 py-1 rounded-lg border text-red-600">Delete</button></td>`
+        ].join("");
+        tbody.appendChild(row);
+      });
+
+      tbody.querySelectorAll(".delete-student").forEach((button) => {
+        button.onclick = async () => {
+          const studentId = button.getAttribute("data-student-id");
+          if (!studentId || !confirm("Delete this student from the roster and remove them from all courses?")) {
+            return;
+          }
+
+          try {
+            await deleteStudent(studentId);
+            showToast("Student deleted");
+          } catch (error) {
+            showToast(error.message || "Failed to delete student");
+          }
+        };
+      });
+    }
+
+    function renderCourses() {
+      const grid = document.getElementById("courses-grid");
+      const empty = document.getElementById("courses-empty");
+      const count = document.getElementById("courses-count");
+
+      grid.innerHTML = "";
+      count.textContent = String(courseDocs.length);
+
+      if (courseDocs.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+
+      sortByName(courseDocs, "name").forEach((course) => {
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-2xl p-5 card-shadow border border-slate-200";
+        const enrolledCount = Array.isArray(course.studentIds) ? course.studentIds.length : 0;
+
+        card.innerHTML = [
+          `<p class="text-sm font-medium text-indigo-600">${course.code || ""}</p>`,
+          `<h3 class="text-xl font-semibold mt-1">${course.name || "Untitled Course"}</h3>`,
+          `<p class="text-sm text-slate-500 mt-2 min-h-[40px]">${course.description || "No description added yet."}</p>`,
+          `<div class="flex items-center justify-between mt-4 text-sm text-slate-500">`,
+          `<span>${enrolledCount} students enrolled</span>`,
+          `<span>${course.createdAt ? new Date(course.createdAt).toLocaleDateString() : ""}</span>`,
+          `</div>`,
+          `<div class="flex gap-2 mt-4">`,
+          `<a href="course.html?courseId=${course.id}" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Open Course</a>`,
+          `<button data-course-id="${course.id}" class="delete-course px-4 py-2 rounded-lg border text-sm">Delete</button>`,
+          `</div>`
+        ].join("");
+
+        grid.appendChild(card);
+      });
+
+      grid.querySelectorAll(".delete-course").forEach((button) => {
+        button.onclick = async () => {
+          const courseId = button.getAttribute("data-course-id");
+          if (!courseId || !confirm("Delete this course and its saved attendance records?")) {
+            return;
+          }
+
+          try {
+            const attendanceSnapshot = await db.collection("courses").doc(courseId).collection("attendance").get();
+            const batch = db.batch();
+            attendanceSnapshot.forEach((doc) => batch.delete(doc.ref));
+            batch.delete(db.collection("courses").doc(courseId));
+            await batch.commit();
+            showToast("Course deleted");
+          } catch (error) {
+            showToast(error.message || "Failed to delete course");
+          }
+        };
+      });
+    }
+
+    async function loadStudents(uid) {
+      const snapshot = await db.collection("students")
+        .where("teacherId", "==", uid)
+        .get();
+
+      studentDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      renderStudents();
+    }
+
+    async function loadCourses(uid) {
+      const snapshot = await db.collection("courses")
+        .where("teacherId", "==", uid)
+        .get();
+
+      courseDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      renderCourses();
+    }
+
+    async function deleteStudent(studentId) {
+      const batch = db.batch();
+      batch.delete(db.collection("students").doc(studentId));
+
+      courseDocs.forEach((course) => {
+        const studentIds = Array.isArray(course.studentIds) ? course.studentIds : [];
+        if (studentIds.includes(studentId)) {
+          batch.update(db.collection("courses").doc(course.id), {
+            studentIds: studentIds.filter((id) => id !== studentId)
+          });
+        }
+      });
+
+      await batch.commit();
+    }
+
+    function subscribeToTeacherData(uid) {
+      db.collection("students")
+        .where("teacherId", "==", uid)
+        .onSnapshot((snapshot) => {
+          studentDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          renderStudents();
+        }, (error) => {
+          showToast(error.message || "Unable to load student roster");
+        });
+
+      db.collection("courses")
+        .where("teacherId", "==", uid)
+        .onSnapshot((snapshot) => {
+          courseDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          renderCourses();
+        }, (error) => {
+          showToast(error.message || "Unable to load courses");
+        });
+    }
+
+    document.getElementById("open-add-course").onclick = () => openModal("course-modal");
+    document.getElementById("open-add-course-empty").onclick = () => openModal("course-modal");
+    document.getElementById("close-course-modal").onclick = () => closeModal("course-modal");
+    document.getElementById("cancel-course-modal").onclick = () => closeModal("course-modal");
+
+    document.getElementById("open-add-student").onclick = () => openModal("student-modal");
+    document.getElementById("open-add-student-inline").onclick = () => openModal("student-modal");
+    document.getElementById("close-student-modal").onclick = () => closeModal("student-modal");
+    document.getElementById("cancel-student-modal").onclick = () => closeModal("student-modal");
+    studentSortEl.onchange = renderStudents;
+
+    document.getElementById("course-form").onsubmit = async (event) => {
+      event.preventDefault();
+      const user = auth.currentUser;
+      if (!user) {
+        showToast("Login required");
+        return;
+      }
+
+      const code = document.getElementById("course-code").value.trim();
+      const name = document.getElementById("course-name").value.trim();
+      const description = document.getElementById("course-desc").value.trim();
+
+      if (!code || !name) {
+        showToast("Course code and name are required");
+        return;
+      }
+
+      try {
+        await db.collection("courses").add({
+          code,
+          name,
+          description,
+          teacherId: user.uid,
+          teacherEmail: user.email || "",
+          studentIds: [],
+          createdAt: new Date().toISOString()
+        });
+
+        await loadCourses(user.uid);
+        event.target.reset();
+        closeModal("course-modal");
+        showToast("Course created");
+      } catch (error) {
+        showToast(error.message || "Failed to create course");
+      }
+    };
+
+    document.getElementById("student-form").onsubmit = async (event) => {
+      event.preventDefault();
+      const user = auth.currentUser;
+      if (!user) {
+        showToast("Login required");
+        return;
+      }
+
+      const rollNumber = document.getElementById("student-roll").value.trim();
+      const fullName = document.getElementById("student-name").value.trim();
+      const email = document.getElementById("student-email").value.trim();
+      const parentEmail = document.getElementById("parent-email").value.trim();
+
+      if (!rollNumber || !fullName || !email) {
+        showToast("Roll number, name, and email are required");
+        return;
+      }
+
+      const normalizedName = fullName.toLowerCase();
+      const normalizedRoll = rollNumber.toLowerCase();
+      const duplicateStudent = studentDocs.find((student) =>
+        String(student.fullName || "").toLowerCase() === normalizedName ||
+        String(student.rollNumber || "").toLowerCase() === normalizedRoll
+      );
+
+      if (duplicateStudent) {
+        showToast("Student name or roll number already exists");
+        return;
+      }
+
+      try {
+        await db.collection("students").add({
+          rollNumber,
+          fullName,
+          email,
+          parentEmail,
+          teacherId: user.uid,
+          teacherEmail: user.email || "",
+          createdAt: new Date().toISOString()
+        });
+
+        await loadStudents(user.uid);
+        event.target.reset();
+        closeModal("student-modal");
+        showToast("Student added to roster");
+      } catch (error) {
+        showToast(error.message || "Failed to add student");
+      }
+    };
+
+    document.getElementById("logout-btn").onclick = async () => {
+      await auth.signOut();
+      location.href = "auth.html";
+    };
+
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        location.href = "auth.html";
+        return;
+      }
+
+      document.getElementById("user-email").textContent = user.email || "";
+      subscribeToTeacherData(user.uid);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,657 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AttendTrack - Course</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .container { max-width: 1180px; }
+    .card-shadow { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+    .modal { display: none; }
+    .modal.active { display: flex; }
+    #toast { transition: opacity .18s, transform .18s; }
+    #toast.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; }
+    #toast.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+  <header class="border-b bg-white/95 sticky top-0 z-10 backdrop-blur-sm">
+    <div class="container mx-auto px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <button id="back-btn" class="px-3 py-2 rounded-lg border bg-white">Back</button>
+        <div>
+          <p id="course-code" class="text-sm font-medium text-indigo-600"></p>
+          <h1 id="course-name" class="text-2xl font-bold">Loading course...</h1>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button id="open-assign-students" class="px-4 py-2 rounded-lg border bg-white">Add Students to Course</button>
+        <button id="save-attendance" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Save Attendance</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-8 space-y-8">
+    <section class="grid gap-4 lg:grid-cols-4">
+      <div class="bg-white rounded-2xl p-5 card-shadow lg:col-span-2">
+        <p class="text-sm text-slate-500">Course Details</p>
+        <p id="course-description" class="mt-3 text-slate-700 leading-6">Loading...</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 card-shadow">
+        <p class="text-sm text-slate-500">Enrolled Students</p>
+        <p id="enrolled-count" class="text-3xl font-bold mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 card-shadow">
+        <p class="text-sm text-slate-500">Overall Attendance</p>
+        <p id="overall-percentage" class="text-3xl font-bold mt-2">0%</p>
+        <p id="overall-meta" class="text-sm text-slate-500 mt-2">0 lectures</p>
+      </div>
+    </section>
+
+    <section class="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+      <div class="space-y-6">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+          <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 class="text-xl font-semibold">Daily Attendance</h2>
+              <p class="text-sm text-slate-500">Pick a date, mark attendance, and save. Saved data can be reopened any time.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <label for="date-input" class="text-sm text-slate-500">Date</label>
+              <input id="date-input" type="date" class="rounded-lg border px-3 py-2" />
+            </div>
+          </div>
+
+          <div id="attendance-empty" class="hidden mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+            Add students to this course to start taking attendance.
+          </div>
+
+          <div class="mt-5 overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-slate-500 border-b">
+                  <th class="py-3 pr-4">Roll No.</th>
+                  <th class="py-3 pr-4">Full Name</th>
+                  <th class="py-3 pr-4">Student Email</th>
+                  <th class="py-3 pr-4">Present</th>
+                </tr>
+              </thead>
+              <tbody id="attendance-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-xl font-semibold">Student Overview</h2>
+              <p class="text-sm text-slate-500">Overall attendance, attended lectures, and percentage for each student.</p>
+            </div>
+          </div>
+
+          <div id="stats-empty" class="hidden rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+            No students enrolled in this course yet.
+          </div>
+
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-slate-500 border-b">
+                  <th class="py-3 pr-4">Roll No.</th>
+                  <th class="py-3 pr-4">Student</th>
+                  <th class="py-3 pr-4">Student Email</th>
+                  <th class="py-3 pr-4">Parent Email</th>
+                  <th class="py-3 pr-4">Attendance</th>
+                  <th class="py-3 pr-4">Percentage</th>
+                </tr>
+              </thead>
+              <tbody id="stats-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-xl font-semibold">Enrolled Students</h2>
+              <p class="text-sm text-slate-500">Manage which roster students belong to this course.</p>
+            </div>
+            <button id="open-assign-students-inline" class="px-3 py-2 rounded-lg border">Manage</button>
+          </div>
+
+          <div id="enrolled-empty" class="hidden rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+            No students assigned to this course.
+          </div>
+
+          <div id="students-list" class="space-y-3"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+          <h2 class="text-xl font-semibold">Send Attendance Emails</h2>
+          <p class="text-sm text-slate-500 mt-1">Choose who should receive the attendance summary for this course.</p>
+
+          <button id="open-email-modal" class="mt-5 w-full px-4 py-3 rounded-xl bg-slate-900 text-white">Send Email</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="assign-modal" class="modal fixed inset-0 bg-slate-950/40 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl card-shadow">
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 class="text-xl font-semibold">Add Students to Course</h3>
+          <p class="text-sm text-slate-500">Select students from your roster and save.</p>
+        </div>
+        <button id="close-assign-modal" class="text-slate-500">Close</button>
+      </div>
+
+      <div id="assign-empty" class="hidden rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+        Add students from the dashboard first, then return here to assign them.
+      </div>
+
+      <div id="assign-list" class="space-y-3 max-h-[420px] overflow-auto"></div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" id="cancel-assign-modal" class="px-4 py-2 rounded-lg border">Cancel</button>
+        <button type="button" id="save-course-students" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Save Selection</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="email-modal" class="modal fixed inset-0 bg-slate-950/40 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-xl card-shadow">
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 class="text-xl font-semibold">Send Attendance Emails</h3>
+          <p class="text-sm text-slate-500">Choose one option and send.</p>
+        </div>
+        <button id="close-email-modal" class="text-slate-500">Close</button>
+      </div>
+
+      <div class="space-y-3">
+        <label class="flex gap-3 rounded-xl border p-4">
+          <input type="radio" name="email-mode" value="students_all" checked />
+          <span>Send emails to all students</span>
+        </label>
+        <label class="flex gap-3 rounded-xl border p-4">
+          <input type="radio" name="email-mode" value="students_and_parents_all" />
+          <span>Send emails to all students and respective parents</span>
+        </label>
+        <label class="flex gap-3 rounded-xl border p-4">
+          <input type="radio" name="email-mode" value="below_75_students" />
+          <span>Send emails to all students whose attendance is below 75%</span>
+        </label>
+        <label class="flex gap-3 rounded-xl border p-4">
+          <input type="radio" name="email-mode" value="below_75_students_and_parents" />
+          <span>Send emails to all students whose attendance is below 75% and their respective parents</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" id="cancel-email-modal" class="px-4 py-2 rounded-lg border">Cancel</button>
+        <button type="button" id="send-email-btn" class="px-4 py-2 rounded-lg bg-slate-900 text-white">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 hidden bg-slate-900 text-white px-4 py-2 rounded-md shadow-lg">toast</div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqa3NndyYxagDaZPVI4f-8p7SYnBrvKTg",
+      authDomain: "attendo-9f2c0.firebaseapp.com",
+      projectId: "attendo-9f2c0",
+      storageBucket: "attendo-9f2c0.firebasestorage.app",
+      messagingSenderId: "690694898936",
+      appId: "1:690694898936:web:3e0bfcfb15cb88689ae70d"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    sessionStorage.setItem("firebaseConfig", JSON.stringify(firebaseConfig));
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const courseId = new URL(location.href).searchParams.get("courseId");
+
+    if (!courseId) {
+      location.href = "index.html";
+    }
+
+    const dateInput = document.getElementById("date-input");
+    dateInput.value = new Date().toISOString().split("T")[0];
+
+    const toastEl = document.getElementById("toast");
+    let toastTimer;
+    let courseDoc = null;
+    let rosterStudents = [];
+    let enrolledStudents = [];
+    let attendanceRecords = {};
+    let attendanceStats = [];
+    let authReady = false;
+
+    function showToast(message, duration = 3000) {
+      clearTimeout(toastTimer);
+      toastEl.textContent = message;
+      toastEl.classList.remove("hidden");
+      toastEl.classList.add("visible");
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove("visible");
+        toastEl.classList.add("hidden");
+      }, duration);
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add("active");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("active");
+    }
+
+    function updateCourseMeta() {
+      document.getElementById("course-code").textContent = courseDoc ? courseDoc.code || "" : "";
+      document.getElementById("course-name").textContent = courseDoc ? courseDoc.name || "Course" : "Course";
+      document.getElementById("course-description").textContent = courseDoc && courseDoc.description
+        ? courseDoc.description
+        : "No description added for this course.";
+    }
+
+    function deriveEnrolledStudents() {
+      const selectedIds = Array.isArray(courseDoc && courseDoc.studentIds) ? courseDoc.studentIds : [];
+      enrolledStudents = selectedIds
+        .map((id) => rosterStudents.find((student) => student.id === id))
+        .filter(Boolean)
+        .sort((a, b) => String(a.rollNumber || "").localeCompare(String(b.rollNumber || "")));
+
+      document.getElementById("enrolled-count").textContent = String(enrolledStudents.length);
+    }
+
+    function renderEnrolledStudents() {
+      const list = document.getElementById("students-list");
+      const empty = document.getElementById("enrolled-empty");
+      list.innerHTML = "";
+
+      if (enrolledStudents.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+
+      enrolledStudents.forEach((student) => {
+        const card = document.createElement("div");
+        card.className = "rounded-xl border p-4 bg-slate-50";
+        card.innerHTML = [
+          `<div class="flex items-start justify-between gap-4">`,
+          `<div>`,
+          `<p class="text-xs font-medium text-indigo-600">${student.rollNumber || "-"}</p>`,
+          `<p class="font-semibold">${student.fullName || "-"}</p>`,
+          `<p class="text-sm text-slate-500">${student.email || "-"}</p>`,
+          `<p class="text-sm text-slate-500">${student.parentEmail || "No parent email"}</p>`,
+          `</div>`,
+          `<button data-student-id="${student.id}" class="remove-enrollment text-sm px-3 py-2 rounded-lg border">Remove</button>`,
+          `</div>`
+        ].join("");
+        list.appendChild(card);
+      });
+
+      list.querySelectorAll(".remove-enrollment").forEach((button) => {
+        button.onclick = async () => {
+          const studentId = button.getAttribute("data-student-id");
+          if (!studentId || !courseDoc) {
+            return;
+          }
+
+          const nextIds = (courseDoc.studentIds || []).filter((id) => id !== studentId);
+          await db.collection("courses").doc(courseId).update({ studentIds: nextIds });
+          showToast("Student removed from course");
+        };
+      });
+    }
+
+    function renderAssignList() {
+      const wrap = document.getElementById("assign-list");
+      const empty = document.getElementById("assign-empty");
+      wrap.innerHTML = "";
+
+      if (rosterStudents.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+
+      const selectedIds = new Set(courseDoc && Array.isArray(courseDoc.studentIds) ? courseDoc.studentIds : []);
+
+      rosterStudents
+        .slice()
+        .sort((a, b) => String(a.rollNumber || "").localeCompare(String(b.rollNumber || "")))
+        .forEach((student) => {
+          const row = document.createElement("label");
+          row.className = "flex items-start gap-3 rounded-xl border p-4";
+          row.innerHTML = [
+            `<input type="checkbox" class="mt-1 assign-checkbox" value="${student.id}" ${selectedIds.has(student.id) ? "checked" : ""}>`,
+            `<span>`,
+            `<span class="block text-xs font-medium text-indigo-600">${student.rollNumber || "-"}</span>`,
+            `<span class="block font-semibold">${student.fullName || "-"}</span>`,
+            `<span class="block text-sm text-slate-500">${student.email || "-"}</span>`,
+            `<span class="block text-sm text-slate-500">${student.parentEmail || "No parent email"}</span>`,
+            `</span>`
+          ].join("");
+          wrap.appendChild(row);
+        });
+    }
+
+    async function loadAttendanceForDate() {
+      if (!courseDoc) {
+        return;
+      }
+
+      attendanceRecords = {};
+      enrolledStudents.forEach((student) => {
+        attendanceRecords[student.id] = false;
+      });
+
+      if (enrolledStudents.length === 0) {
+        renderAttendanceTable();
+        return;
+      }
+
+      const attendanceSnap = await db.collection("courses")
+        .doc(courseId)
+        .collection("attendance")
+        .doc(dateInput.value)
+        .get();
+
+      if (attendanceSnap.exists) {
+        const saved = attendanceSnap.data().records || {};
+        Object.keys(saved).forEach((studentId) => {
+          attendanceRecords[studentId] = Boolean(saved[studentId]);
+        });
+      }
+
+      renderAttendanceTable();
+    }
+
+    function renderAttendanceTable() {
+      const tbody = document.getElementById("attendance-tbody");
+      const empty = document.getElementById("attendance-empty");
+      tbody.innerHTML = "";
+
+      if (enrolledStudents.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+
+      enrolledStudents.forEach((student) => {
+        const row = document.createElement("tr");
+        row.className = "border-b last:border-0";
+        row.innerHTML = [
+          `<td class="py-3 pr-4 font-medium">${student.rollNumber || "-"}</td>`,
+          `<td class="py-3 pr-4">${student.fullName || "-"}</td>`,
+          `<td class="py-3 pr-4">${student.email || "-"}</td>`,
+          `<td class="py-3 pr-4">`,
+          `<label class="inline-flex items-center gap-2">`,
+          `<input type="checkbox" class="attendance-checkbox h-4 w-4" data-student-id="${student.id}" ${attendanceRecords[student.id] ? "checked" : ""}>`,
+          `<span>${attendanceRecords[student.id] ? "Present" : "Absent"}</span>`,
+          `</label>`,
+          `</td>`
+        ].join("");
+        tbody.appendChild(row);
+      });
+
+      tbody.querySelectorAll(".attendance-checkbox").forEach((checkbox) => {
+        checkbox.onchange = () => {
+          const studentId = checkbox.getAttribute("data-student-id");
+          if (!studentId) {
+            return;
+          }
+
+          attendanceRecords[studentId] = checkbox.checked;
+          const label = checkbox.parentElement.querySelector("span");
+          if (label) {
+            label.textContent = checkbox.checked ? "Present" : "Absent";
+          }
+        };
+      });
+    }
+
+    async function computeStats() {
+      const statsBody = document.getElementById("stats-tbody");
+      const statsEmpty = document.getElementById("stats-empty");
+      statsBody.innerHTML = "";
+      attendanceStats = [];
+
+      if (enrolledStudents.length === 0) {
+        statsEmpty.classList.remove("hidden");
+        document.getElementById("overall-percentage").textContent = "0%";
+        document.getElementById("overall-meta").textContent = "0 lectures analysed";
+        return;
+      }
+
+      statsEmpty.classList.add("hidden");
+
+      const snap = await db.collection("courses").doc(courseId).collection("attendance").get();
+      const totalLectures = snap.size;
+
+      let overallSum = 0;
+
+      enrolledStudents.forEach((student) => {
+        let attended = 0;
+
+        snap.forEach((doc) => {
+          const records = doc.data().records || {};
+          if (records[student.id]) {
+            attended += 1;
+          }
+        });
+
+        const percentage = totalLectures > 0 ? Math.round((attended / totalLectures) * 100) : 0;
+        overallSum += percentage;
+
+        const stat = {
+          studentId: student.id,
+          rollNumber: student.rollNumber || "",
+          fullName: student.fullName || "",
+          email: student.email || "",
+          parentEmail: student.parentEmail || "",
+          attended,
+          totalLectures,
+          percentage
+        };
+        attendanceStats.push(stat);
+
+        const row = document.createElement("tr");
+        row.className = "border-b last:border-0";
+        row.innerHTML = [
+          `<td class="py-3 pr-4 font-medium">${stat.rollNumber || "-"}</td>`,
+          `<td class="py-3 pr-4">${stat.fullName || "-"}</td>`,
+          `<td class="py-3 pr-4">${stat.email || "-"}</td>`,
+          `<td class="py-3 pr-4">${stat.parentEmail || "-"}</td>`,
+          `<td class="py-3 pr-4">${stat.attended} / ${stat.totalLectures}</td>`,
+          `<td class="py-3 pr-4 ${stat.percentage < 75 ? "text-amber-600 font-semibold" : "text-emerald-600 font-semibold"}">${stat.percentage}%</td>`
+        ].join("");
+        statsBody.appendChild(row);
+      });
+
+      const overallPercentage = attendanceStats.length > 0 ? Math.round(overallSum / attendanceStats.length) : 0;
+      document.getElementById("overall-percentage").textContent = `${overallPercentage}%`;
+      document.getElementById("overall-meta").textContent = `${totalLectures} lectures analysed`;
+    }
+
+    async function refreshCourseView() {
+      if (!courseDoc) {
+        return;
+      }
+
+      updateCourseMeta();
+      deriveEnrolledStudents();
+      renderEnrolledStudents();
+      renderAssignList();
+      await loadAttendanceForDate();
+      await computeStats();
+    }
+
+    async function saveAttendance() {
+      if (!courseDoc) {
+        return;
+      }
+
+      const payload = {};
+      enrolledStudents.forEach((student) => {
+        payload[student.id] = Boolean(attendanceRecords[student.id]);
+      });
+
+      await db.collection("courses")
+        .doc(courseId)
+        .collection("attendance")
+        .doc(dateInput.value)
+        .set({
+          date: dateInput.value,
+          records: payload,
+          savedAt: new Date().toISOString()
+        });
+
+      showToast("Attendance saved");
+      await computeStats();
+    }
+
+    async function sendAttendanceEmails() {
+      const selected = document.querySelector('input[name="email-mode"]:checked');
+      const mode = selected ? selected.value : "students_all";
+
+      if (!attendanceStats.length) {
+        showToast("Save attendance first or add students before sending emails");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/send-attendance-emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode,
+            courseName: courseDoc.name || "",
+            courseCode: courseDoc.code || "",
+            teacherEmail: auth.currentUser ? auth.currentUser.email || "" : "",
+            stats: attendanceStats
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Email sending failed");
+        }
+
+        closeModal("email-modal");
+        showToast(`Emails sent: ${result.sent}. Skipped: ${result.skipped}.`);
+      } catch (error) {
+        showToast(error.message || "Failed to send email");
+      }
+    }
+
+    function subscribeToCourse(uid) {
+      db.collection("students")
+        .where("teacherId", "==", uid)
+        .onSnapshot(async (snapshot) => {
+          rosterStudents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          if (authReady) {
+            await refreshCourseView();
+          }
+        });
+
+      db.collection("courses")
+        .doc(courseId)
+        .onSnapshot(async (snapshot) => {
+          if (!snapshot.exists) {
+            showToast("Course not found");
+            setTimeout(() => {
+              location.href = "index.html";
+            }, 600);
+            return;
+          }
+
+          const data = snapshot.data();
+          if (data.teacherId !== uid) {
+            showToast("You do not have access to this course");
+            setTimeout(() => {
+              location.href = "index.html";
+            }, 600);
+            return;
+          }
+
+          courseDoc = { id: snapshot.id, ...data };
+          authReady = true;
+          await refreshCourseView();
+        });
+    }
+
+    document.getElementById("back-btn").onclick = () => {
+      location.href = "index.html";
+    };
+
+    document.getElementById("open-assign-students").onclick = () => openModal("assign-modal");
+    document.getElementById("open-assign-students-inline").onclick = () => openModal("assign-modal");
+    document.getElementById("close-assign-modal").onclick = () => closeModal("assign-modal");
+    document.getElementById("cancel-assign-modal").onclick = () => closeModal("assign-modal");
+
+    document.getElementById("open-email-modal").onclick = () => openModal("email-modal");
+    document.getElementById("close-email-modal").onclick = () => closeModal("email-modal");
+    document.getElementById("cancel-email-modal").onclick = () => closeModal("email-modal");
+
+    document.getElementById("save-course-students").onclick = async () => {
+      if (!courseDoc) {
+        return;
+      }
+
+      const selectedIds = Array.from(document.querySelectorAll(".assign-checkbox:checked")).map((checkbox) => checkbox.value);
+      await db.collection("courses").doc(courseId).update({ studentIds: selectedIds });
+      closeModal("assign-modal");
+      showToast("Course students updated");
+    };
+
+    document.getElementById("save-attendance").onclick = async () => {
+      try {
+        await saveAttendance();
+      } catch (error) {
+        showToast(error.message || "Failed to save attendance");
+      }
+    };
+
+    document.getElementById("send-email-btn").onclick = sendAttendanceEmails;
+
+    dateInput.onchange = async () => {
+      try {
+        await loadAttendanceForDate();
+      } catch (error) {
+        showToast(error.message || "Failed to load attendance");
+      }
+    };
+
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        location.href = "auth.html";
+        return;
+      }
+
+      subscribeToCourse(user.uid);
+    });
+  </script>
+</body>
+</html>

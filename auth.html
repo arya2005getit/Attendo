@@ -1,0 +1,201 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendTrack - Login</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .card-shadow { box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06); }
+    .animate-fade-in { animation: fadeIn .25s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+    .tab-active { background-color: white; color: black; }
+    .tab-inactive { background-color: #f1f5f9; color: #64748b; }
+    #toast { transition: opacity 0.2s ease, transform 0.2s ease; }
+    #toast.hidden { opacity: 0; transform: translateY(6px); pointer-events: none; }
+    #toast.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <div class="bg-white rounded-xl p-6 card-shadow animate-fade-in">
+      <div class="mx-auto h-16 w-16 rounded-xl bg-indigo-600 flex items-center justify-center text-white mb-4 text-2xl">
+        AC
+      </div>
+
+      <h1 class="text-2xl font-bold text-center">AttendTrack</h1>
+      <p class="text-center text-slate-500">Sign in to manage your attendance records</p>
+
+      <div class="grid grid-cols-2 mt-6 mb-6 gap-1 bg-slate-200 p-1 rounded-lg">
+        <button id="tab-login" class="py-2 rounded-lg tab-active font-medium" type="button">Login</button>
+        <button id="tab-signup" class="py-2 rounded-lg tab-inactive font-medium" type="button">Sign Up</button>
+      </div>
+
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label class="block text-sm mb-1" for="login-email">Email</label>
+          <input id="login-email" type="email" class="w-full rounded-md border px-3 py-2" placeholder="teacher@school.edu" />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="login-password">Password</label>
+          <input id="login-password" type="password" class="w-full rounded-md border px-3 py-2" placeholder="Enter password" />
+        </div>
+
+        <button id="login-btn" type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md font-medium">
+          Sign In
+        </button>
+      </form>
+
+      <form id="signup-form" class="space-y-4 hidden">
+        <div>
+          <label class="block text-sm mb-1" for="signup-email">Email</label>
+          <input id="signup-email" type="email" class="w-full rounded-md border px-3 py-2" placeholder="teacher@school.edu" />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="signup-password">Password</label>
+          <input id="signup-password" type="password" class="w-full rounded-md border px-3 py-2" placeholder="Minimum 6 characters" />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="signup-confirm-password">Confirm Password</label>
+          <input id="signup-confirm-password" type="password" class="w-full rounded-md border px-3 py-2" placeholder="Confirm password" />
+        </div>
+
+        <button id="signup-btn" type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md font-medium">
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 hidden bg-slate-900 text-white px-4 py-2 rounded-md shadow-lg">toast</div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqa3NndyYxagDaZPVI4f-8p7SYnBrvKTg",
+      authDomain: "attendo-9f2c0.firebaseapp.com",
+      projectId: "attendo-9f2c0",
+      storageBucket: "attendo-9f2c0.firebasestorage.app",
+      messagingSenderId: "690694898936",
+      appId: "1:690694898936:web:3e0bfcfb15cb88689ae70d"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    sessionStorage.setItem("firebaseConfig", JSON.stringify(firebaseConfig));
+
+    const auth = firebase.auth();
+
+    const toastEl = document.getElementById("toast");
+    let toastTimer;
+
+    function showToast(message, duration = 3000) {
+      clearTimeout(toastTimer);
+      toastEl.textContent = message;
+      toastEl.classList.remove("hidden");
+      toastEl.classList.add("visible");
+
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove("visible");
+        toastEl.classList.add("hidden");
+      }, duration);
+    }
+
+    const tabLogin = document.getElementById("tab-login");
+    const tabSignup = document.getElementById("tab-signup");
+    const loginForm = document.getElementById("login-form");
+    const signupForm = document.getElementById("signup-form");
+
+    function showLoginTab() {
+      tabLogin.classList.add("tab-active");
+      tabLogin.classList.remove("tab-inactive");
+      tabSignup.classList.add("tab-inactive");
+      tabSignup.classList.remove("tab-active");
+      loginForm.classList.remove("hidden");
+      signupForm.classList.add("hidden");
+    }
+
+    function showSignupTab() {
+      tabSignup.classList.add("tab-active");
+      tabSignup.classList.remove("tab-inactive");
+      tabLogin.classList.add("tab-inactive");
+      tabLogin.classList.remove("tab-active");
+      signupForm.classList.remove("hidden");
+      loginForm.classList.add("hidden");
+    }
+
+    tabLogin.onclick = showLoginTab;
+    tabSignup.onclick = showSignupTab;
+
+    loginForm.onsubmit = async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value.trim();
+
+      if (!email || !password) {
+        showToast("Fill all fields");
+        return;
+      }
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        showToast("Welcome back", 1200);
+        setTimeout(() => {
+          location.href = "index.html";
+        }, 500);
+      } catch (error) {
+        showToast(error.message || "Login failed");
+      }
+    };
+
+    signupForm.onsubmit = async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value.trim();
+      const confirm = document.getElementById("signup-confirm-password").value.trim();
+
+      if (!email || !password || !confirm) {
+        showToast("Fill all fields");
+        return;
+      }
+
+      if (password.length < 6) {
+        showToast("Password must be at least 6 characters");
+        return;
+      }
+
+      if (password !== confirm) {
+        showToast("Passwords do not match");
+        return;
+      }
+
+      try {
+        await auth.createUserWithEmailAndPassword(email, password);
+        showToast("Account created", 1200);
+        setTimeout(() => {
+          location.href = "index.html";
+        }, 500);
+      } catch (error) {
+        showToast(error.message || "Signup failed");
+      }
+    };
+
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        location.href = "index.html";
+      }
+    });
+  </script>
+</body>
+</html>
