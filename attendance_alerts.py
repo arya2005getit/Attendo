@@ -3,11 +3,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Dict, List, Tuple
 
-GMAIL_USER = "automated.attendance.alerts@gmail.com"
-GMAIL_PASSWORD = "epwq huqq khun rlny"
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
-
 
 def build_recipients(mode: str, stats: List[Dict]) -> List[Tuple[str, Dict]]:
     recipients: List[Tuple[str, Dict]] = []
