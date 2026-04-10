@@ -1,15 +1,13 @@
-﻿import smtplib
+import os
+import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Dict, List, Tuple
-import os
-from dotenv import load_dotenv
-print("SMTP_PORT from env:", os.getenv("SMTP_PORT"))
 
-GMAIL_USER = os.getenv("GMAIL_USER")
-GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
+GMAIL_USER = os.getenv("GMAIL_USER", "automated.attendance.alerts@gmail.com")
+GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD", "nwpqwxeqhtfqxsnv")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 
 
 def build_recipients(mode: str, stats: List[Dict]) -> List[Tuple[str, Dict]]:

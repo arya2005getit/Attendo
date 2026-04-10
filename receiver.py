@@ -10,6 +10,7 @@ CORS(app)
 SAVE_PATH = os.path.join(os.path.dirname(__file__), "attendance2.xlsx")
 
 
+
 @app.post("/upload-excel")
 def upload_excel():
     file = request.files.get("file")
